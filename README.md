@@ -72,3 +72,24 @@ pip install anthropic click rich
 pip install -e .
 python -m vett.cli scan . --no-ai
 ```
+
+## Release process (PyPI)
+
+1. Update version in `vett/__init__.py` (`__version__`).
+2. Add release notes in `CHANGELOG.md` (move items from `Unreleased` to the new version).
+3. Commit and push to `main`.
+4. Create a GitHub Release (or tag) for that version.
+5. GitHub Actions publishes to PyPI via `.github/workflows/publish-pypi.yml`.
+
+### One-time PyPI setup
+
+- In PyPI, create a trusted publisher for this GitHub repository/workflow.
+- Recommended: restrict publishing to releases from `main`.
+
+### Manual local publish (fallback)
+
+```bash
+python -m pip install --upgrade build twine
+python -m build
+python -m twine upload dist/*
+```
