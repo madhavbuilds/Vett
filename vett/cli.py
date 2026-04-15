@@ -34,10 +34,21 @@ def scan(path, api_key, max_files, no_ai):
 
     if not no_ai and not api_key:
         console.print("[yellow]⚠️  No API key found.[/yellow]")
-        console.print("  Set it: [cyan]export ANTHROPIC_API_KEY=your-key[/cyan]")
-        console.print("  Or run without AI: [cyan]vett scan . --no-ai[/cyan]")
+        choice = click.prompt(
+            "Choose an option: [1] Enter API key  [2] Continue without AI",
+            type=click.Choice(["1", "2"], case_sensitive=False),
+            default="2",
+            show_choices=False,
+        )
+        if choice == "1":
+            api_key = click.prompt("Enter Anthropic API key", hide_input=True).strip()
+            if not api_key:
+                console.print("[red]API key cannot be empty.[/red]")
+                sys.exit(1)
+        else:
+            no_ai = True
+            console.print("[cyan]Continuing in no-AI mode.[/cyan]")
         console.print()
-        sys.exit(1)
 
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         task = progress.add_task("Collecting files...", total=None)
