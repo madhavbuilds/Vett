@@ -139,5 +139,6 @@ def save_markdown_report(root_path, ai_result, security, todos, large, complex_f
         lines += ["---", f"", f"> 🎤 *{ai_result['one_line_roast']}*", ""]
 
     report_path = Path(root_path) / "vett_report.md"
-    report_path.write_text("\n".join(lines))
+    # Force UTF-8 so emoji and symbols work on Windows default cp1252 terminals.
+    report_path.write_text("\n".join(lines), encoding="utf-8")
     return str(report_path)
