@@ -17,7 +17,7 @@ pip install -e .
 
 ```bash
 # Local-only scan
-python -m vett.cli scan . --no-ai
+vett scan . --no-ai
 
 # AI scan (requires API key)
 export ANTHROPIC_API_KEY=your-key-here   # Mac/Linux

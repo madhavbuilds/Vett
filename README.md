@@ -1,95 +1,122 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/vett)](https://pypi.org/project/vett/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 # 🩺 Vett — AI-Powered Codebase Health Scanner
 
-> Free alternative to SonarQube. Runs locally. Uses Claude AI.
+> Fast codebase health checks with optional AI analysis. Local-first, open source, and developer-friendly.
 
-## Install
+## ✨ Features
+
+- 🔐 Security pattern detection (secrets, risky APIs)
+- 📏 Complexity and maintainability checks
+- 📝 TODO/FIXME/HACK discovery
+- 🤖 Optional AI project analysis (Anthropic, OpenAI, Gemini, OpenRouter)
+- 📄 Markdown report output (`vett_report.md`)
+
+## 📦 Install
 
 ```bash
-pip install anthropic click rich
+pip install -U vett
+```
+
+If you are developing locally:
+
+```bash
 pip install -e .
 ```
 
-## Usage
+## 🚀 Quick Start
 
 ```bash
-# Optional but recommended on Windows (prevents UnicodeEncodeError)
-set PYTHONUTF8=1                              # Windows CMD
-$env:PYTHONUTF8=1                             # PowerShell
+# Scan current project (interactive mode if no API key is set)
+vett scan .
 
-# Step 1 — Set your API key (free at console.anthropic.com)
+# Scan without AI
+vett scan . --no-ai
+
+# Scan a specific folder
+vett scan ./my-project
+```
+
+API key setup (optional):
+
+```bash
+# Anthropic
 export ANTHROPIC_API_KEY=your-key-here        # Mac/Linux
 set ANTHROPIC_API_KEY=your-key-here           # Windows CMD
 $env:ANTHROPIC_API_KEY="your-key-here"        # PowerShell
 
-# Step 2 — Scan any project
-vett scan .                    # scan current folder
-vett scan ./my-project         # scan a specific folder
-vett scan . --no-ai            # no API key needed, local checks only
-python -m vett.cli scan .      # fallback if `vett` is not in PATH
+# OpenAI
+export OPENAI_API_KEY=your-key-here
+
+# Gemini
+export GEMINI_API_KEY=your-key-here
+
+# OpenRouter (great for free/open models)
+export OPENROUTER_API_KEY=your-key-here
 ```
 
-## What it checks
+Pick provider with:
+
+```bash
+vett scan . --provider anthropic
+vett scan . --provider openai
+vett scan . --provider gemini
+vett scan . --provider openrouter
+```
+
+## 🧭 CLI Reference
+
+```bash
+vett --help
+vett scan --help
+vett scan . --provider openrouter
+vett scan . --provider openai --model gpt-4o-mini
+vett version
+vett version --short
+```
+
+## 📊 What Vett Checks
 
 | Check | Description |
 |-------|-------------|
-| 🔐 Security | Hardcoded secrets, unsafe eval/exec, SQL injection |
+| 🔐 Security | Hardcoded secrets, unsafe eval/exec, SQL injection patterns |
 | 📏 Complexity | Functions longer than 50 lines |
 | 📦 Large files | Files over 300 lines |
 | 📝 TODOs | Unresolved TODO/FIXME/HACK comments |
 | 🤖 AI Analysis | Project summary, grade, strengths, suggestions |
 
-## Output
+## 📁 Output
 
-- Beautiful terminal report
-- `vett_report.md` saved in your project folder
+- Colorful terminal report
+- `vett_report.md` saved in your target folder
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
-- `vett: command not found` -> run `python -m vett.cli scan . --no-ai`
-- `UnicodeEncodeError` on Windows -> set `PYTHONUTF8=1` and run again
-- `No API key found` -> set `ANTHROPIC_API_KEY` or use `--no-ai`
-- `No source files found` -> verify the target path includes supported code files (`.py`, `.js`, `.ts`, etc.)
+- `vett: command not found` -> reinstall with `pip install -U vett` and restart terminal
+- `UnicodeEncodeError` on Windows -> set `PYTHONUTF8=1` before running
+- `No source files found` -> verify the target has code files (`.py`, `.js`, `.ts`, ...)
 
-## Requirements
-
-- Python 3.9+
-- Anthropic API key (free tier available at console.anthropic.com)
-
-## Open Source
+## 🤝 Open Source
 
 - License: MIT (`LICENSE`)
 - Contributing guide: `CONTRIBUTING.md`
 - Security policy: `SECURITY.md`
+- Changelog: `CHANGELOG.md`
 
-## Quick start for contributors
+## 🧪 For Contributors
 
 ```bash
-pip install anthropic click rich
 pip install -e .
-python -m vett.cli scan . --no-ai
+vett scan . --no-ai
 ```
 
-## Release process (PyPI)
+## 📤 Release Process (PyPI)
 
-1. Update version in `vett/__init__.py` (`__version__`).
-2. Add release notes in `CHANGELOG.md` (move items from `Unreleased` to the new version).
-3. Commit and push to `main`.
-4. Create a GitHub Release (or tag) for that version.
-5. GitHub Actions publishes to PyPI via `.github/workflows/publish-pypi.yml`.
-
-### One-time PyPI setup
-
-- In PyPI, create a trusted publisher for this GitHub repository/workflow.
-- Recommended: restrict publishing to releases from `main`.
-
-### Manual local publish (fallback)
-
-```bash
-python -m pip install --upgrade build twine
-python -m build
-python -m twine upload dist/*
-```
+1. Update `vett/__init__.py` version.
+2. Update `CHANGELOG.md`.
+3. Push to `main`.
+4. Create a GitHub release or version tag.
+5. Workflow `.github/workflows/publish-pypi.yml` publishes to PyPI.

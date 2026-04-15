@@ -1,9 +1,18 @@
-import anthropic
 import json
+import urllib.parse
+import urllib.request
 
-def analyze_with_claude(files, security, todos, large, complex_fns, api_key):
-    client = anthropic.Anthropic(api_key=api_key)
+import anthropic
 
+DEFAULT_MODELS = {
+    "anthropic": "claude-3-5-sonnet-20241022",
+    "openai": "gpt-4o-mini",
+    "gemini": "gemini-1.5-flash",
+    "openrouter": "openai/gpt-4o-mini",
+}
+
+
+def _build_prompt(files, security, todos, large, complex_fns):
     file_summary = "\n".join(
         f"- {f['path']} ({f['language']}, {f['lines']} lines)"
         for f in files[:20]
@@ -14,7 +23,7 @@ def analyze_with_claude(files, security, todos, large, complex_fns, api_key):
         snippet = "\n".join(f["content"].splitlines()[:60])
         code_samples += f"\n\n### {f['path']} ({f['language']})\n```\n{snippet}\n```"
 
-    prompt = f"""You are Vett, an expert AI code reviewer. Analyze this codebase and give a structured health report.
+    return f"""You are Vett, an expert AI code reviewer. Analyze this codebase and give a structured health report.
 
 ## Project Files
 {file_summary}
@@ -43,26 +52,99 @@ Respond ONLY with a valid JSON object:
   "one_line_roast": "A funny but constructive one-liner about the codebase"
 }}"""
 
+
+def _extract_json(raw):
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return raw.strip()
+
+
+def _fallback_error(message):
+    return {
+        "project_summary": "Could not complete AI analysis.",
+        "overall_score": 0,
+        "grade": "?",
+        "strengths": [],
+        "critical_issues": [message],
+        "suggestions": [],
+        "estimated_tech_debt": "Unknown",
+        "one_line_roast": "",
+    }
+
+
+def _post_json(url, payload, headers):
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _analyze_anthropic(prompt, api_key, model):
+    client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-opus-4-5",
+        model=model,
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}],
     )
+    return message.content[0].text
 
-    raw = message.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    raw = raw.strip()
+
+def _analyze_openai_compatible(prompt, api_key, model, base_url):
+    response = _post_json(
+        f"{base_url.rstrip('/')}/chat/completions",
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    return response["choices"][0]["message"]["content"]
+
+
+def _analyze_gemini(prompt, api_key, model):
+    encoded_model = urllib.parse.quote(model, safe="")
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{encoded_model}:generateContent?key={api_key}"
+    )
+    response = _post_json(
+        url,
+        {"contents": [{"parts": [{"text": prompt}]}]},
+        {"Content-Type": "application/json"},
+    )
+    candidates = response.get("candidates", [])
+    if not candidates:
+        return ""
+    parts = candidates[0].get("content", {}).get("parts", [])
+    texts = [p.get("text", "") for p in parts if p.get("text")]
+    return "\n".join(texts).strip()
+
+def analyze_with_ai(files, security, todos, large, complex_fns, provider, api_key, model=None):
+    provider = (provider or "anthropic").lower()
+    model = model or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["anthropic"])
+    prompt = _build_prompt(files, security, todos, large, complex_fns)
+    try:
+        if provider == "anthropic":
+            raw = _analyze_anthropic(prompt, api_key, model)
+        elif provider == "openai":
+            raw = _analyze_openai_compatible(prompt, api_key, model, "https://api.openai.com/v1")
+        elif provider == "openrouter":
+            raw = _analyze_openai_compatible(prompt, api_key, model, "https://openrouter.ai/api/v1")
+        elif provider == "gemini":
+            raw = _analyze_gemini(prompt, api_key, model)
+        else:
+            return _fallback_error(f"Unsupported provider '{provider}'.")
+    except Exception as exc:
+        return _fallback_error(f"Failed to get AI analysis from {provider}: {exc}")
 
     try:
-        return json.loads(raw)
-    except:
-        return {
-            "project_summary": "Could not parse AI response.",
-            "overall_score": 0, "grade": "?",
-            "strengths": [], "critical_issues": ["Failed to get AI analysis — check your API key."],
-            "suggestions": [], "estimated_tech_debt": "Unknown",
-            "one_line_roast": "Your code broke the AI. Impressive.",
-        }
+        return json.loads(_extract_json(raw))
+    except Exception:
+        return _fallback_error(f"Could not parse AI response from {provider}.")

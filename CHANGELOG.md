@@ -6,6 +6,19 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-15
+
+### Added
+- Multi-provider AI support: Anthropic, OpenAI, Gemini, and OpenRouter.
+- New scan options: `--provider` and `--model`.
+- Provider-specific API key support via environment variables:
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`.
+- Interactive arrow-key mode selection when no API key is configured.
+
+### Improved
+- More polished CLI help and version output.
+- Better README and run guides for user-friendly install, usage, and troubleshooting.
+
 ## [0.1.1] - 2026-04-15
 
 ### Added
