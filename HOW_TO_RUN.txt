@@ -1,0 +1,53 @@
+============================
+  VETT - HOW TO RUN
+============================
+
+STEP 1: Open terminal in this folder (D:\vett\vett)
+
+STEP 2: Install dependencies
+  pip install anthropic click rich
+  pip install -e .
+
+STEP 3: Get free API key
+  Go to: https://console.anthropic.com
+  Sign up → Create API Key → Copy it
+
+STEP 4: Enable UTF-8 on Windows (recommended)
+  PowerShell: $env:PYTHONUTF8=1
+  CMD:        set PYTHONUTF8=1
+
+STEP 5: Set your API key (optional for AI mode)
+  Mac/Linux:  export ANTHROPIC_API_KEY=sk-ant-xxxxx
+  PowerShell: $env:ANTHROPIC_API_KEY="sk-ant-xxxxx"
+  CMD:        set ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+STEP 6: Run Vett
+  vett scan .                  (scan current folder with AI)
+  vett scan . --no-ai          (scan without API key)
+  vett scan C:\path\to\project (scan any folder)
+  python -m vett.cli scan .    (fallback if "vett" command not found)
+
+STEP 7: See results
+  - Terminal shows colorful report
+  - vett_report.md saved in scanned folder
+
+============================
+  TROUBLESHOOTING
+============================
+
+Error: "vett: command not found"
+  Solution: python -m vett.cli scan . --no-ai
+
+Error: "ModuleNotFoundError"
+  Solution: pip install anthropic click rich
+
+Error: "UnicodeEncodeError" on Windows
+  Cause: terminal encoding cannot print emoji
+  Solution: set PYTHONUTF8=1, then run again
+
+Error: "No API key found"
+  Solution: set ANTHROPIC_API_KEY or use --no-ai
+
+Error: "No source files found"
+  Solution: Make sure path has .py .js .ts files
+============================
