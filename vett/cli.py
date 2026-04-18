@@ -1,11 +1,12 @@
-import sys
-import platform
 import os
+import platform
+import sys
 from typing import Optional
+
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 console = Console()
 
@@ -45,9 +46,8 @@ def resolve_api_key(provider: str, explicit_api_key: Optional[str]) -> Optional[
     env_name = ENV_KEY_BY_PROVIDER.get(provider, "ANTHROPIC_API_KEY")
     return os.getenv(env_name)
 
-@click.group(
-    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 100}
-)
+
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 100})
 def main():
     """🩺 Vett — AI-powered codebase health scanner.
 
@@ -60,6 +60,7 @@ def main():
       vett version
     """
     pass
+
 
 @main.command()
 @click.argument("path", default=".", type=click.Path(exists=True))
@@ -92,9 +93,9 @@ def scan(path, api_key, provider, model, max_files, no_ai):
       vett scan ./my-project --no-ai
       vett scan . --provider openrouter
     """
-    from vett.utils import collect_files
-    from vett.scanner import scan_security, scan_todos, scan_large_files, scan_complexity
     from vett.reporter import print_report, save_markdown_report
+    from vett.scanner import scan_complexity, scan_large_files, scan_security, scan_todos
+    from vett.utils import collect_files
 
     console.print()
     console.print("[bold cyan]🩺 Vett[/bold cyan] [dim]— AI Codebase Health Scanner[/dim]")
@@ -118,7 +119,9 @@ def scan(path, api_key, provider, model, max_files, no_ai):
             console.print("[cyan]Continuing in no-AI mode.[/cyan]")
         console.print()
 
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+    with Progress(
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+    ) as progress:
         task = progress.add_task("Collecting files...", total=None)
         files = collect_files(path, max_files=max_files)
         progress.update(task, description=f"Found [bold]{len(files)}[/bold] source files")
@@ -142,6 +145,7 @@ def scan(path, api_key, provider, model, max_files, no_ai):
         if not no_ai:
             progress.update(task, description=f"[cyan]Running AI analysis ({provider})...[/cyan]")
             from vett.analyzer import analyze_with_ai
+
             ai_result = analyze_with_ai(
                 files,
                 security,
@@ -155,9 +159,12 @@ def scan(path, api_key, provider, model, max_files, no_ai):
         else:
             ai_result = {
                 "project_summary": "AI analysis skipped (--no-ai flag used).",
-                "overall_score": 0, "grade": "N/A",
-                "strengths": [], "critical_issues": [],
-                "suggestions": [], "estimated_tech_debt": "Unknown",
+                "overall_score": 0,
+                "grade": "N/A",
+                "strengths": [],
+                "critical_issues": [],
+                "suggestions": [],
+                "estimated_tech_debt": "Unknown",
                 "one_line_roast": "",
             }
 
@@ -166,11 +173,13 @@ def scan(path, api_key, provider, model, max_files, no_ai):
 
     print_report(path, ai_result, security, todos, large, complex_fns, files)
 
+
 @main.command()
 @click.option("--short", is_flag=True, help="Print version only.")
 def version(short):
     """Show Vett version and environment info."""
     from vett import __version__
+
     if short:
         console.print(__version__)
         return
@@ -183,6 +192,7 @@ def version(short):
     table.add_row("Command", "vett scan . --provider openai")
     console.print("[bold cyan]Vett[/bold cyan] [dim]version info[/dim]")
     console.print(table)
+
 
 if __name__ == "__main__":
     main()

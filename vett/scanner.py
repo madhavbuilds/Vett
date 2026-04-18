@@ -1,23 +1,25 @@
 import re
-from pathlib import Path
 
 SECURITY_PATTERNS = [
     (r'(?i)(password|passwd|pwd)\s*=\s*["\'][^"\']{3,}["\']', "Hardcoded password"),
     (r'(?i)(api_key|apikey|api-key)\s*=\s*["\'][^"\']{8,}["\']', "Hardcoded API key"),
     (r'(?i)(secret|token)\s*=\s*["\'][^"\']{8,}["\']', "Hardcoded secret/token"),
     (r'(?i)aws_access_key_id\s*=\s*["\'][^"\']+["\']', "Hardcoded AWS key"),
-    (r'eval\s*\(', "Use of eval() - dangerous"),
-    (r'exec\s*\(', "Use of exec() - potentially dangerous"),
-    (r'subprocess\.call\(.*shell\s*=\s*True', "Shell injection risk"),
-    (r'os\.system\(', "Use of os.system() - prefer subprocess"),
-    (r'pickle\.loads?\(', "Unsafe pickle deserialization"),
+    # Descriptions must not contain the same substrings these regexes match,
+    # or this file's own pattern rows trigger false positives.
+    (r"eval\s*\(", "Dangerous use of Python's eval built-in"),
+    (r"exec\s*\(", "Dangerous use of Python's exec built-in"),
+    (r"subprocess\.call\(.*shell\s*=\s*True", "Shell injection risk"),
+    (r"os\.system\(", "Legacy process helper; prefer subprocess APIs"),
+    (r"pickle\.loads?\(", "Unsafe pickle deserialization"),
 ]
 
 TODO_PATTERNS = [
-    (r'#\s*TODO', "TODO comment"),
-    (r'#\s*FIXME', "FIXME comment"),
-    (r'#\s*HACK', "HACK comment"),
+    (r"#\s*TODO", "TODO comment"),
+    (r"#\s*FIXME", "FIXME comment"),
+    (r"#\s*HACK", "HACK comment"),
 ]
+
 
 def scan_security(files):
     findings = []
@@ -25,12 +27,17 @@ def scan_security(files):
         for line_num, line in enumerate(file["content"].splitlines(), 1):
             for pattern, description in SECURITY_PATTERNS:
                 if re.search(pattern, line):
-                    findings.append({
-                        "file": file["path"], "line": line_num,
-                        "issue": description, "snippet": line.strip()[:80],
-                        "severity": "CRITICAL" if "Hardcoded" in description else "WARNING",
-                    })
+                    findings.append(
+                        {
+                            "file": file["path"],
+                            "line": line_num,
+                            "issue": description,
+                            "snippet": line.strip()[:80],
+                            "severity": "CRITICAL" if "Hardcoded" in description else "WARNING",
+                        }
+                    )
     return findings
+
 
 def scan_todos(files):
     findings = []
@@ -38,17 +45,24 @@ def scan_todos(files):
         for line_num, line in enumerate(file["content"].splitlines(), 1):
             for pattern, description in TODO_PATTERNS:
                 if re.search(pattern, line, re.IGNORECASE):
-                    findings.append({
-                        "file": file["path"], "line": line_num,
-                        "issue": description, "snippet": line.strip()[:80],
-                    })
+                    findings.append(
+                        {
+                            "file": file["path"],
+                            "line": line_num,
+                            "issue": description,
+                            "snippet": line.strip()[:80],
+                        }
+                    )
     return findings
+
 
 def scan_large_files(files, threshold=300):
     return [
         {"file": f["path"], "lines": f["lines"], "language": f["language"]}
-        for f in files if f["lines"] > threshold
+        for f in files
+        if f["lines"] > threshold
     ]
+
 
 def scan_complexity(files):
     findings = []
@@ -63,16 +77,24 @@ def scan_complexity(files):
             stripped = line.strip()
             if stripped.startswith("def ") or stripped.startswith("async def "):
                 if in_function and (i - func_start) > 50:
-                    findings.append({
-                        "file": file["path"], "function": func_name,
-                        "line": func_start + 1, "length": i - func_start,
-                    })
+                    findings.append(
+                        {
+                            "file": file["path"],
+                            "function": func_name,
+                            "line": func_start + 1,
+                            "length": i - func_start,
+                        }
+                    )
                 in_function = True
                 func_start = i
                 func_name = stripped.split("(")[0].replace("def ", "").replace("async ", "").strip()
         if in_function and (len(lines) - func_start) > 50:
-            findings.append({
-                "file": file["path"], "function": func_name,
-                "line": func_start + 1, "length": len(lines) - func_start,
-            })
+            findings.append(
+                {
+                    "file": file["path"],
+                    "function": func_name,
+                    "line": func_start + 1,
+                    "length": len(lines) - func_start,
+                }
+            )
     return findings

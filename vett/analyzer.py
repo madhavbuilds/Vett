@@ -14,8 +14,7 @@ DEFAULT_MODELS = {
 
 def _build_prompt(files, security, todos, large, complex_fns):
     file_summary = "\n".join(
-        f"- {f['path']} ({f['language']}, {f['lines']} lines)"
-        for f in files[:20]
+        f"- {f['path']} ({f['language']}, {f['lines']} lines)" for f in files[:20]
     )
     sample_files = sorted(files, key=lambda x: x["lines"], reverse=True)[:3]
     code_samples = ""
@@ -75,6 +74,44 @@ def _fallback_error(message):
     }
 
 
+def _sanitize_ai_result(data):
+    """Coerce parsed JSON into the shapes the CLI and reporter expect."""
+    if not isinstance(data, dict):
+        return _fallback_error("AI returned a non-object JSON payload.")
+    out = dict(data)
+    try:
+        out["overall_score"] = int(out.get("overall_score", 0))
+    except (TypeError, ValueError):
+        out["overall_score"] = 0
+    grade = out.get("grade")
+    out["grade"] = str(grade).strip()[:8] if grade is not None else "?"
+
+    for key in ("strengths", "critical_issues"):
+        raw_list = out.get(key)
+        if not isinstance(raw_list, list):
+            out[key] = []
+        else:
+            out[key] = [str(x).strip() for x in raw_list if x is not None and str(x).strip()]
+
+    raw_suggestions = out.get("suggestions")
+    suggestions = []
+    if isinstance(raw_suggestions, list):
+        for item in raw_suggestions:
+            if isinstance(item, dict):
+                title = str(item.get("title") or "Suggestion").strip() or "Suggestion"
+                detail = str(item.get("detail") or "").strip()
+                suggestions.append({"title": title, "detail": detail})
+            elif isinstance(item, str) and item.strip():
+                suggestions.append({"title": "Suggestion", "detail": item.strip()})
+    out["suggestions"] = suggestions
+
+    for key in ("project_summary", "estimated_tech_debt", "one_line_roast"):
+        val = out.get(key)
+        out[key] = str(val).strip() if val is not None else ""
+
+    return out
+
+
 def _post_json(url, payload, headers):
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
@@ -126,6 +163,7 @@ def _analyze_gemini(prompt, api_key, model):
     texts = [p.get("text", "") for p in parts if p.get("text")]
     return "\n".join(texts).strip()
 
+
 def analyze_with_ai(files, security, todos, large, complex_fns, provider, api_key, model=None):
     provider = (provider or "anthropic").lower()
     model = model or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["anthropic"])
@@ -145,6 +183,7 @@ def analyze_with_ai(files, security, todos, large, complex_fns, provider, api_ke
         return _fallback_error(f"Failed to get AI analysis from {provider}: {exc}")
 
     try:
-        return json.loads(_extract_json(raw))
+        parsed = json.loads(_extract_json(raw))
     except Exception:
         return _fallback_error(f"Could not parse AI response from {provider}.")
+    return _sanitize_ai_result(parsed)
