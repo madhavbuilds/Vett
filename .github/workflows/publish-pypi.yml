@@ -1,3 +1,13 @@
+# Publishes with PyPI "trusted publishing" (OIDC). No API token in GitHub secrets.
+#
+# If the publish step fails with invalid-publisher, add this publisher on PyPI for
+# project "vett" (https://pypi.org/manage/project/vett/settings/publishing/):
+#   Owner: madhavbuilds
+#   Repository name: Vett          <-- must match GitHub (capital V)
+#   Workflow name: publish-pypi.yml
+#   Environment name: (leave empty)
+#
+# Docs: https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 name: Publish to PyPI
 
 on:
