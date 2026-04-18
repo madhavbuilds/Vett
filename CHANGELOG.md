@@ -6,6 +6,20 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-19
+
+### Added
+- Unit tests (scanner, utils, AI response normalization) and dev extras (`pytest`, `ruff`).
+- CI runs Ruff and pytest before the CLI smoke test.
+- README presence row in terminal and markdown reports.
+
+### Fixed
+- Security scanner false positives from pattern descriptions and from test fixtures when scanning this repository.
+- Deterministic ordering of collected source files.
+
+### Improved
+- AI JSON responses are sanitized before display; suggestion items accept varied shapes from models.
+
 ## [0.1.3] - 2026-04-15
 
 ### Added
