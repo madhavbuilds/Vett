@@ -31,12 +31,12 @@ def choose_ai_mode() -> str:
         return "ai" if click.confirm("Use AI analysis?", default=False) else "no_ai"
 
     choice = questionary.select(
-        "No API key found. Choose scan mode:",
+        "Choose scan mode:",
         choices=[
-            questionary.Choice("Use AI analysis (enter API key)", value="ai"),
-            questionary.Choice("Continue without AI", value="no_ai"),
+            questionary.Choice("With AI analysis", value="ai"),
+            questionary.Choice("Without AI (local scan only)", value="no_ai"),
         ],
-        default="no_ai",
+        default="ai",
         qmark="?",
     ).ask()
     return choice or "no_ai"
@@ -168,12 +168,10 @@ def scan(path, api_key, provider, model, max_files, no_ai):
     console.print()
 
     provider = provider.lower()
+    explicit_api_key = api_key
     api_key = resolve_api_key(provider, api_key)
 
-    if not no_ai and not api_key:
-        env_name = ENV_KEY_BY_PROVIDER.get(provider, "API_KEY")
-        console.print(f"[yellow]⚠️  No API key found for provider '{provider}'.[/yellow]")
-        console.print(f"[dim]Set {env_name} or pass --api-key.[/dim]")
+    if not no_ai and not explicit_api_key:
         mode = choose_ai_mode()
         if mode == "ai":
             provider = choose_provider(default=provider)
@@ -191,6 +189,11 @@ def scan(path, api_key, provider, model, max_files, no_ai):
             no_ai = True
             console.print("[cyan]Continuing in no-AI mode.[/cyan]")
         console.print()
+    elif not no_ai and not api_key:
+        env_name = ENV_KEY_BY_PROVIDER.get(provider, "API_KEY")
+        console.print(f"[red]No API key for provider '{provider}'.[/red]")
+        console.print(f"[dim]Set {env_name} or pass --api-key.[/dim]")
+        sys.exit(1)
 
     with Progress(
         SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
