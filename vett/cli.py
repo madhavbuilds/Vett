@@ -4,7 +4,9 @@ import sys
 from typing import Optional
 
 import click
+from rich.align import Align
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
@@ -45,6 +47,46 @@ def resolve_api_key(provider: str, explicit_api_key: Optional[str]) -> Optional[
         return explicit_api_key
     env_name = ENV_KEY_BY_PROVIDER.get(provider, "ANTHROPIC_API_KEY")
     return os.getenv(env_name)
+
+
+def calculate_local_score(root_path, security, todos, large, complex_fns):
+    from vett.utils import has_readme
+
+    score = 100
+
+    criticals = sum(1 for s in security if s.get("severity") == "CRITICAL")
+    warnings = sum(1 for s in security if s.get("severity") == "WARNING")
+    score -= criticals * 15
+    score -= warnings * 5
+
+    score -= min(len(todos) * 2, 20)
+    score -= min(len(large) * 5, 15)
+    score -= min(len(complex_fns) * 3, 15)
+
+    if has_readme(root_path):
+        score += 5
+
+    score = max(0, min(100, score))
+
+    if score >= 90:
+        grade = "A"
+    elif score >= 75:
+        grade = "B"
+    elif score >= 60:
+        grade = "C"
+    elif score >= 40:
+        grade = "D"
+    else:
+        grade = "F"
+
+    if score >= 80:
+        debt = "Low"
+    elif score >= 55:
+        debt = "Medium"
+    else:
+        debt = "High"
+
+    return score, grade, debt
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 100})
@@ -97,8 +139,12 @@ def scan(path, api_key, provider, model, max_files, no_ai):
     from vett.scanner import scan_complexity, scan_large_files, scan_security, scan_todos
     from vett.utils import collect_files
 
-    console.print()
-    console.print("[bold cyan]🩺 Vett[/bold cyan] [dim]— AI Codebase Health Scanner[/dim]")
+    banner = Panel(
+        Align.center("[bold cyan]🩺 Vett[/bold cyan]  [dim]AI Codebase Health Scanner[/dim]"),
+        border_style="cyan",
+        padding=(0, 4),
+    )
+    console.print(banner)
     console.print()
 
     provider = provider.lower()
@@ -157,19 +203,34 @@ def scan(path, api_key, provider, model, max_files, no_ai):
                 model=model,
             )
         else:
+            score, grade, debt = calculate_local_score(path, security, todos, large, complex_fns)
             ai_result = {
-                "project_summary": "AI analysis skipped (--no-ai flag used).",
-                "overall_score": 0,
-                "grade": "N/A",
+                "project_summary": (
+                    f"Local scan complete. {len(files)} files analysed. "
+                    "Run without --no-ai for full AI insights."
+                ),
+                "overall_score": score,
+                "grade": grade,
                 "strengths": [],
                 "critical_issues": [],
                 "suggestions": [],
-                "estimated_tech_debt": "Unknown",
+                "estimated_tech_debt": debt,
                 "one_line_roast": "",
             }
 
         progress.update(task, description="Generating report...")
         save_markdown_report(path, ai_result, security, todos, large, complex_fns, files)
+
+    console.print(f"  [green]✓[/green] {len(files)} files scanned")
+    console.print(
+        f"  [{'red' if security else 'green'}]{'✗' if security else '✓'}"
+        f"[/{'red' if security else 'green'}] {len(security)} security issues"
+    )
+    console.print(
+        f"  [{'yellow' if todos else 'green'}]{'⚠' if todos else '✓'}"
+        f"[/{'yellow' if todos else 'green'}] {len(todos)} TODO/FIXME comments"
+    )
+    console.print()
 
     print_report(path, ai_result, security, todos, large, complex_fns, files)
 

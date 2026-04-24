@@ -40,6 +40,10 @@ def get_grade_emoji(grade):
     return {"A": "🏆", "B": "👍", "C": "⚠️", "D": "🔴", "F": "💀"}.get(grade, "❓")
 
 
+def status_and_color(count, bad_color="red", ok_label="✅", bad_label="🔴"):
+    return (ok_label, "green") if count == 0 else (bad_label, bad_color)
+
+
 def print_report(root_path, ai_result, security, todos, large, complex_fns, files):
     from vett.utils import has_readme
 
@@ -74,12 +78,26 @@ def print_report(root_path, ai_result, security, todos, large, complex_fns, file
     table.add_column("Metric", style="cyan")
     table.add_column("Count", justify="right")
     table.add_column("Status", justify="center")
-    table.add_row("Files scanned", str(len(files)), "✅")
-    table.add_row("Security issues", str(len(security)), "🔴" if security else "✅")
-    table.add_row("TODO / FIXME", str(len(todos)), "⚠️" if todos else "✅")
-    table.add_row("Large files (>300 lines)", str(len(large)), "⚠️" if large else "✅")
+    table.add_row("Files scanned", f"[cyan]{len(files)}[/cyan]", "✅")
+
+    sec_icon, sec_color = status_and_color(len(security))
+    table.add_row("Security issues", f"[{sec_color}]{len(security)}[/{sec_color}]", sec_icon)
+
+    todo_icon, todo_color = status_and_color(
+        len(todos), bad_color="yellow", bad_label="⚠️"
+    )
+    table.add_row("TODO / FIXME", f"[{todo_color}]{len(todos)}[/{todo_color}]", todo_icon)
+
+    large_icon, large_color = status_and_color(
+        len(large), bad_color="yellow", bad_label="⚠️"
+    )
     table.add_row(
-        "Complex functions (>50 lines)", str(len(complex_fns)), "⚠️" if complex_fns else "✅"
+        "Large files (>300 lines)", f"[{large_color}]{len(large)}[/{large_color}]", large_icon
+    )
+    table.add_row(
+        "Complex functions (>50 lines)",
+        f"[{'yellow' if complex_fns else 'green'}]{len(complex_fns)}[/{'yellow' if complex_fns else 'green'}]",
+        "⚠️" if complex_fns else "✅",
     )
     readme_ok = has_readme(root_path)
     table.add_row("README present", "yes" if readme_ok else "no", "✅" if readme_ok else "⚠️")
@@ -94,6 +112,32 @@ def print_report(root_path, ai_result, security, todos, large, complex_fns, file
                 f"  [{sev_color}]{s['severity']}[/{sev_color}] {s['file']}:{s['line']} — {s['issue']}"
             )
             console.print(f"    [dim]{s['snippet']}[/dim]")
+        console.print()
+
+    if todos:
+        console.print(Rule("[bold yellow]📝 TODO / FIXME / HACK[/bold yellow]"))
+        for t in todos[:15]:
+            console.print(f"  [yellow]{t['issue']}[/yellow] {t['file']}:{t['line']}")
+            console.print(f"    [dim]{t['snippet']}[/dim]")
+        if len(todos) > 15:
+            console.print(f"  [dim]... and {len(todos) - 15} more[/dim]")
+        console.print()
+
+    if large:
+        console.print(Rule("[bold yellow]📦 Large Files[/bold yellow]"))
+        for f in large:
+            console.print(f"  [yellow]{f['file']}[/yellow] — {f['lines']} lines ({f['language']})")
+        console.print()
+
+    if complex_fns:
+        console.print(Rule("[bold orange3]🔀 Complex Functions[/bold orange3]"))
+        for c in complex_fns:
+            reason = c.get("reason", "Too long")
+            nesting = c.get("max_nesting", "?")
+            console.print(
+                f"  [orange3]{c['function']}()[/orange3] in {c['file']}:{c['line']} "
+                f"— {c['length']} lines, nesting depth {nesting} ({reason})"
+            )
         console.print()
 
     if ai_result.get("strengths"):
@@ -128,7 +172,13 @@ def print_report(root_path, ai_result, security, todos, large, complex_fns, file
         )
         console.print()
 
-    console.print(Rule("[dim]Report saved → vett_report.md[/dim]"))
+    footer_lines = [f"[dim]Report saved →[/dim] [cyan]vett_report.md[/cyan]"]
+    if security:
+        footer_lines.append(f"[red]Fix {len(security)} security issue(s) first[/red]")
+    elif score >= 80:
+        footer_lines.append("[green]Looking clean! Keep it up.[/green]")
+
+    console.print(Panel("\n".join(footer_lines), border_style="dim"))
     console.print()
 
 
@@ -169,6 +219,12 @@ def save_markdown_report(root_path, ai_result, security, todos, large, complex_f
         lines += ["## 🔐 Security Issues", ""]
         for s in security:
             lines.append(f"- **{s['severity']}** `{s['file']}:{s['line']}` — {s['issue']}")
+        lines.append("")
+
+    if todos:
+        lines += ["## 📝 TODO / FIXME / HACK", ""]
+        for t in todos:
+            lines.append(f"- **{t['issue']}** `{t['file']}:{t['line']}` — `{t['snippet']}`")
         lines.append("")
 
     if ai_result.get("strengths"):

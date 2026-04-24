@@ -67,34 +67,51 @@ def scan_large_files(files, threshold=300):
 def scan_complexity(files):
     findings = []
     for file in files:
-        if file["language"] != "Python":
+        if file["language"] not in ("Python", "JavaScript", "TypeScript", "React JSX", "React TSX"):
             continue
         lines = file["content"].splitlines()
         in_function = False
         func_start = 0
         func_name = ""
+        max_indent = 0
         for i, line in enumerate(lines):
             stripped = line.strip()
+            if not stripped:
+                continue
+            indent = len(line) - len(line.lstrip())
             if stripped.startswith("def ") or stripped.startswith("async def "):
-                if in_function and (i - func_start) > 50:
-                    findings.append(
-                        {
-                            "file": file["path"],
-                            "function": func_name,
-                            "line": func_start + 1,
-                            "length": i - func_start,
-                        }
-                    )
+                if in_function:
+                    length = i - func_start
+                    if length > 50 or max_indent >= 4:
+                        findings.append(
+                            {
+                                "file": file["path"],
+                                "function": func_name,
+                                "line": func_start + 1,
+                                "length": length,
+                                "max_nesting": max_indent,
+                                "reason": "Too long" if length > 50 else "Too deeply nested",
+                            }
+                        )
                 in_function = True
                 func_start = i
+                max_indent = 0
                 func_name = stripped.split("(")[0].replace("def ", "").replace("async ", "").strip()
-        if in_function and (len(lines) - func_start) > 50:
-            findings.append(
-                {
-                    "file": file["path"],
-                    "function": func_name,
-                    "line": func_start + 1,
-                    "length": len(lines) - func_start,
-                }
-            )
+            elif in_function:
+                nesting = indent // 4
+                if nesting > max_indent:
+                    max_indent = nesting
+        if in_function:
+            length = len(lines) - func_start
+            if length > 50 or max_indent >= 4:
+                findings.append(
+                    {
+                        "file": file["path"],
+                        "function": func_name,
+                        "line": func_start + 1,
+                        "length": length,
+                        "max_nesting": max_indent,
+                        "reason": "Too long" if length > 50 else "Too deeply nested",
+                    }
+                )
     return findings
