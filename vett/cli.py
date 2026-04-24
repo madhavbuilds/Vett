@@ -62,6 +62,20 @@ def choose_provider(default: str = "anthropic") -> str:
     return choice or default
 
 
+def should_use_detected_key(provider: str, env_name: str) -> bool:
+    """Ask whether to use a detected environment key for provider."""
+    prompt = f"Found {env_name} for {provider}. Use this key?"
+    try:
+        import questionary
+    except Exception:
+        return click.confirm(prompt, default=True)
+
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return click.confirm(prompt, default=True)
+
+    return bool(questionary.confirm(prompt, default=True, qmark="?").ask())
+
+
 def resolve_api_key(provider: str, explicit_api_key: Optional[str]) -> Optional[str]:
     if explicit_api_key:
         return explicit_api_key
@@ -177,7 +191,12 @@ def scan(path, api_key, provider, model, max_files, no_ai):
             provider = choose_provider(default=provider)
             api_key = resolve_api_key(provider, None)
             env_name = ENV_KEY_BY_PROVIDER.get(provider, "API_KEY")
-            if not api_key:
+            if api_key:
+                if not should_use_detected_key(provider, env_name):
+                    api_key = click.prompt(
+                        f"Enter {provider} API key", hide_input=True, default="", show_default=False
+                    ).strip()
+            else:
                 console.print(f"[dim]No {env_name} found in environment.[/dim]")
                 api_key = click.prompt(
                     f"Enter {provider} API key", hide_input=True, default="", show_default=False
