@@ -172,7 +172,7 @@ def print_report(root_path, ai_result, security, todos, large, complex_fns, file
         )
         console.print()
 
-    footer_lines = [f"[dim]Report saved →[/dim] [cyan]vett_report.md[/cyan]"]
+    footer_lines = ["[dim]Report saved →[/dim] [cyan]vett_report.md[/cyan]"]
     if security:
         footer_lines.append(f"[red]Fix {len(security)} security issue(s) first[/red]")
     elif score >= 80:
