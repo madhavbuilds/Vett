@@ -83,14 +83,10 @@ def print_report(root_path, ai_result, security, todos, large, complex_fns, file
     sec_icon, sec_color = status_and_color(len(security))
     table.add_row("Security issues", f"[{sec_color}]{len(security)}[/{sec_color}]", sec_icon)
 
-    todo_icon, todo_color = status_and_color(
-        len(todos), bad_color="yellow", bad_label="⚠️"
-    )
+    todo_icon, todo_color = status_and_color(len(todos), bad_color="yellow", bad_label="⚠️")
     table.add_row("TODO / FIXME", f"[{todo_color}]{len(todos)}[/{todo_color}]", todo_icon)
 
-    large_icon, large_color = status_and_color(
-        len(large), bad_color="yellow", bad_label="⚠️"
-    )
+    large_icon, large_color = status_and_color(len(large), bad_color="yellow", bad_label="⚠️")
     table.add_row(
         "Large files (>300 lines)", f"[{large_color}]{len(large)}[/{large_color}]", large_icon
     )
