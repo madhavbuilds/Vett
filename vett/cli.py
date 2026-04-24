@@ -42,6 +42,26 @@ def choose_ai_mode() -> str:
     return choice or "no_ai"
 
 
+def choose_provider(default: str = "anthropic") -> str:
+    """Let the user pick an AI provider interactively."""
+    providers = ["anthropic", "openai", "gemini", "openrouter"]
+    try:
+        import questionary
+    except Exception:
+        return default
+
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return default
+
+    choice = questionary.select(
+        "Choose an AI provider:",
+        choices=[questionary.Choice(p, value=p) for p in providers],
+        default=default,
+        qmark="?",
+    ).ask()
+    return choice or default
+
+
 def resolve_api_key(provider: str, explicit_api_key: Optional[str]) -> Optional[str]:
     if explicit_api_key:
         return explicit_api_key
@@ -156,7 +176,14 @@ def scan(path, api_key, provider, model, max_files, no_ai):
         console.print(f"[dim]Set {env_name} or pass --api-key.[/dim]")
         mode = choose_ai_mode()
         if mode == "ai":
-            api_key = click.prompt(f"Enter {provider} API key", hide_input=True).strip()
+            provider = choose_provider(default=provider)
+            api_key = resolve_api_key(provider, None)
+            env_name = ENV_KEY_BY_PROVIDER.get(provider, "API_KEY")
+            if not api_key:
+                console.print(f"[dim]No {env_name} found in environment.[/dim]")
+                api_key = click.prompt(
+                    f"Enter {provider} API key", hide_input=True, default="", show_default=False
+                ).strip()
             if not api_key:
                 console.print("[red]API key cannot be empty.[/red]")
                 sys.exit(1)
