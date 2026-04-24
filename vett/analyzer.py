@@ -5,11 +5,15 @@ import urllib.request
 import anthropic
 
 DEFAULT_MODELS = {
-    "anthropic": "claude-3-5-sonnet-20241022",
+    "anthropic": "claude-3-5-sonnet-latest",
     "openai": "gpt-4o-mini",
     "gemini": "gemini-1.5-flash",
     "openrouter": "openai/gpt-4o-mini",
 }
+
+ANTHROPIC_MODEL_FALLBACKS = [
+    "claude-3-5-sonnet-latest",
+]
 
 
 def _build_prompt(files, security, todos, large, complex_fns):
@@ -129,6 +133,11 @@ def _analyze_anthropic(prompt, api_key, model):
     return message.content[0].text
 
 
+def _is_model_not_found_error(exc):
+    msg = str(exc).lower()
+    return "not_found_error" in msg or ("model" in msg and "not found" in msg)
+
+
 def _analyze_openai_compatible(prompt, api_key, model, base_url):
     response = _post_json(
         f"{base_url.rstrip('/')}/chat/completions",
@@ -166,11 +175,27 @@ def _analyze_gemini(prompt, api_key, model):
 
 def analyze_with_ai(files, security, todos, large, complex_fns, provider, api_key, model=None):
     provider = (provider or "anthropic").lower()
+    explicit_model = bool(model)
     model = model or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["anthropic"])
     prompt = _build_prompt(files, security, todos, large, complex_fns)
     try:
         if provider == "anthropic":
-            raw = _analyze_anthropic(prompt, api_key, model)
+            try_models = [model]
+            if not explicit_model:
+                try_models.extend(m for m in ANTHROPIC_MODEL_FALLBACKS if m != model)
+
+            last_exc = None
+            raw = None
+            for candidate_model in try_models:
+                try:
+                    raw = _analyze_anthropic(prompt, api_key, candidate_model)
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    if not _is_model_not_found_error(exc):
+                        raise
+            if raw is None and last_exc is not None:
+                raise last_exc
         elif provider == "openai":
             raw = _analyze_openai_compatible(prompt, api_key, model, "https://api.openai.com/v1")
         elif provider == "openrouter":
