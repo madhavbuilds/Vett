@@ -40,6 +40,33 @@ vett scan . --no-ai
 vett scan ./my-project
 ```
 
+## 📋 Quick Copy Commands
+
+```powershell
+# Check latest live version on PyPI
+python -c "import json,urllib.request;print(json.load(urllib.request.urlopen('https://pypi.org/pypi/vett/json'))['info']['version'])"
+```
+
+```powershell
+# Install/upgrade to latest
+python -m pip install -U vett
+```
+
+```powershell
+# Verify installed CLI version
+vett version
+```
+
+```powershell
+# Scan without AI
+vett scan . --no-ai
+```
+
+```powershell
+# Scan with Anthropic + explicit model
+vett scan . --provider anthropic --model claude-3-5-sonnet-latest
+```
+
 API key setup (optional):
 
 ```bash
