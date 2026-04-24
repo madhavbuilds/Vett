@@ -5,14 +5,17 @@ import urllib.request
 import anthropic
 
 DEFAULT_MODELS = {
-    "anthropic": "claude-3-5-sonnet-latest",
+    "anthropic": "claude-3-5-haiku-latest",
     "openai": "gpt-4o-mini",
     "gemini": "gemini-1.5-flash",
     "openrouter": "openai/gpt-4o-mini",
 }
 
 ANTHROPIC_MODEL_FALLBACKS = [
+    "claude-3-5-haiku-latest",
+    "claude-3-haiku-20240307",
     "claude-3-5-sonnet-latest",
+    "claude-3-5-sonnet-20240620",
 ]
 
 
